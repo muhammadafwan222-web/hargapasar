@@ -1,0 +1,29 @@
+name: Update Harga HSU
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Jalan otomatis setiap 6 jam
+  workflow_dispatch: # Bisa dijalankan manual lewat tombol di GitHub
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Jalankan Script Scraper
+        run: python scraper.py
+
+      - name: Commit dan Push Hasil JSON terbaru ke GitHub Pages
+        run: |
+          git config --global user.name 'GitHub Action Bot'
+          git config --global user.email 'action@github.com'
+          git add data_harga.json
+          git commit -m "Auto-update harga terbaru" || echo "Tidak ada perubahan harga"
+          git push
