@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pantau Harga - Hulu Sungai Utara</title>
+    <style>
+        :root {
+            --primary: #0ea5e9;
+            --bg: #f8fafc;
+            --text: #334155;
+            --card: #ffffff;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 { color: var(--primary); margin-bottom: 5px; }
+        .status {
+            font-size: 0.9em;
+            color: #64748b;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .live-indicator {
+            width: 10px;
+            height: 10px;
+            background-color: var(--success);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        .search-bar {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        table {
+            width: 100%;
+            background: var(--card);
+            border-collapse: collapse;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th { background-color: var(--primary); color: white; }
+        .price-up { color: var(--danger); font-weight: bold; }
+        .price-down { color: var(--success); font-weight: bold; }
+        .price-stable { color: #64748b; }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Info Harga Pasar - Hulu Sungai Utara</h1>
+        <div class="status">
+            <div class="live-indicator"></div>
+            <span id="last-update">Menunggu pembaruan data...</span>
+        </div>
+    </header>
+
+    <input type="text" id="searchInput" class="search-bar" placeholder="Cari barang (misal: Beras, Telur)..." onkeyup="filterTabel()">
+
+    <table id="priceTable">
+        <thead>
+            <tr>
+                <th>Komoditas</th>
+                <th>Harga Saat Ini (Rp)</th>
+                <th>Status / Trend</th>
+                <th>Sumber</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <!-- Data akan dimuat di sini oleh JavaScript -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // --- KONFIGURASI ---
+    // Dalam praktiknya, ganti URL ini dengan API endpoint backend Anda (misal: https://api.anda.com/harga/hsu)
+    const API_URL = "SIMULASI_API"; 
+    const UPDATE_INTERVAL = 5000; // Auto-update setiap 5 detik (hanya untuk demo, idealnya 5-15 menit)
+
+    // Simulasi database awal
+    let currentData = [
+        { id: 1, nama: "Beras Premium", harga: 16500, sumber: "Pasar Candi, Amuntai", trend: "stable" },
+        { id: 2, nama: "Gula Pasir", harga: 17500, sumber: "Disperindag HSU", trend: "stable" },
+        { id: 3, nama: "Minyak Goreng Curah (Liter)", harga: 15500, sumber: "Pasar Candi, Amuntai", trend: "stable" },
+        { id: 4, nama: "Daging Sapi", harga: 130000, sumber: "Disperindag HSU", trend: "stable" },
+        { id: 5, nama: "Daging Ayam Ras", harga: 38000, sumber: "Pasar Induk Amuntai", trend: "stable" },
+        { id: 6, nama: "Telur Ayam Ras (Kg)", harga: 30000, sumber: "PIHPS", trend: "stable" },
+        { id: 7, nama: "Bawang Merah", harga: 32000, sumber: "Pasar Candi, Amuntai", trend: "stable" },
+        { id: 8, nama: "Bawang Putih", harga: 40000, sumber: "Pasar Candi, Amuntai", trend: "stable" },
+        { id: 9, nama: "Cabai Rawit Merah", harga: 65000, sumber: "Pasar Induk Amuntai", trend: "stable" },
+    ];
+
+    // Fungsi format rupiah
+    const formatRupiah = (angka) => {
+        return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(angka);
+    };
+
+   // Ganti bagian simulasi dengan ini:
+function fetchRealtimeData() {
+    fetch('data_harga.json') // Mengambil file JSON dari GitHub Anda sendiri
+        .then(response => response.json())
+        .then(data => {
+            renderTabel(data);
+            updateWaktu();
+        })
+        .catch(error => console.error('Gagal mengambil data:', error));
+}
+        
+        // --- SIMULASI ---
+        currentData = currentData.map(item => {
+            // Randomizer kecil untuk mensimulasikan fluktuasi pasar
+            const changeChance = Math.random();
+            let newHarga = item.harga;
+            let newTrend = "stable";
+
+            if (changeChance > 0.8) { // 20% kemungkinan harga naik
+                newHarga += Math.floor(Math.random() * 5) * 500;
+                newTrend = "up";
+            } else if (changeChance < 0.2) { // 20% kemungkinan harga turun
+                newHarga -= Math.floor(Math.random() * 5) * 500;
+                newTrend = "down";
+            }
+
+            return { ...item, harga: newHarga, trend: newTrend };
+        });
+
+        renderTabel(currentData);
+        updateWaktu();
+    }
+
+    // Fungsi merender data ke tabel HTML
+    function renderTabel(data) {
+        const tbody = document.getElementById("tableBody");
+        tbody.innerHTML = ""; // Bersihkan tabel
+
+        data.forEach(item => {
+            let trendIcon = "— Tetap";
+            let trendClass = "price-stable";
+            
+            if (item.trend === "up") {
+                trendIcon = "▲ Naik";
+                trendClass = "price-up";
+            } else if (item.trend === "down") {
+                trendIcon = "▼ Turun";
+                trendClass = "price-down";
+            }
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${item.nama}</strong></td>
+                <td>Rp ${formatRupiah(item.harga)}</td>
+                <td class="${trendClass}">${trendIcon}</td>
+                <td style="font-size: 0.85em; color: #64748b;">${item.sumber}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Terapkan filter pencarian jika sedang ada teks di kolom pencarian
+        filterTabel();
+    }
+
+    // Fungsi pencarian manual
+    function filterTabel() {
+        const input = document.getElementById("searchInput").value.toUpperCase();
+        const trs = document.getElementById("tableBody").getElementsByTagName("tr");
+
+        for (let i = 0; i < trs.length; i++) {
+            const tdKomoditas = trs[i].getElementsByTagName("td")[0];
+            if (tdKomoditas) {
+                const txtValue = tdKomoditas.textContent || tdKomoditas.innerText;
+                if (txtValue.toUpperCase().indexOf(input) > -1) {
+                    trs[i].style.display = "";
+                } else {
+                    trs[i].style.display = "none";
+                }
+            }
+        }
+    }
+
+    // Fungsi update teks waktu terakhir diperbarui
+    function updateWaktu() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('id-ID');
+        document.getElementById("last-update").innerText = "Update terakhir: " + timeString + " WITA";
+    }
+
+    // Inisialisasi awal
+    window.onload = () => {
+        renderTabel(currentData);
+        updateWaktu();
+        // Jalankan fetchRealtimeData setiap interval yang ditentukan
+        setInterval(fetchRealtimeData, UPDATE_INTERVAL);
+    };
+</script>
+
+</body>
+</html>
